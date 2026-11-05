@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2P Trade Logger</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .header-box {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 1.5rem;
+      color: #38bdf8;
+    }
+    .brand-badge {
+      display: inline-block;
+      background-color: #0369a1;
+      color: #e0f2fe;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #94a3b8;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      border-color: #38bdf8;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+    .row .form-group {
+      flex: 1;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      background-color: #0284c7;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 8px;
+    }
+    button:hover {
+      background-color: #0369a1;
+    }
+    button:disabled {
+      background-color: #475569;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .success {
+      background-color: #065f46;
+      color: #34d399;
+      border: 1px solid #059669;
+    }
+    .error {
+      background-color: #7f1d1d;
+      color: #f87171;
+      border: 1px solid #dc2626;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header-box">
+      <h2>⚡ P2P Trade Logger</h2>
+      <span id="brandBadge" class="brand-badge">Brand: Default</span>
+    </div>
+
+    <form id="tradeForm">
+      
+      <div class="form-group">
+        <label for="worker_name">Worker Name</label>
+        <input type="text" id="worker_name" placeholder="e.g. John" required />
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="order_type">Order Type</label>
+          <select id="order_type" required>
+            <option value="SELL">SELL (Customer buys from us)</option>
+            <option value="BUY">BUY (We buy from customer)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Amount (USDT)</label>
+          <input type="number" step="any" id="quantity" placeholder="e.g. 250" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="price">Rate (NGN/USDT)</label>
+          <input type="number" step="any" id="price" placeholder="e.g. 1650" required />
+        </div>
+        <div class="form-group">
+          <label for="gas_fee">Gas / Bank Fee (NGN)</label>
+          <input type="number" step="any" id="gas_fee" value="0" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="payment_method">Payment Method / Bank</label>
+        <input type="text" id="payment_method" placeholder="e.g. Moniepoint, Kuda, Bank Transfer" required />
+      </div>
+
+      <div class="form-group">
+        <label for="counterparty">Counterparty / Customer Name</label>
+        <input type="text" id="counterparty" placeholder="e.g. Chidi_FX" required />
+      </div>
+
+      <button type="submit" id="submitBtn">Log Transaction</button>
+    </form>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const N8N_WEBHOOK_URL = "https://kenzidml9.app.n8n.cloud/webhook/p2p-trade";
+
+    // 1. Detect brand_id from URL query params (e.g., ?brand=chukwuemeka or ?brand=brand_alpha)
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeBrandId = urlParams.get('brand') || urlParams.get('brand_id') || 'brand_alpha';
+
+    // 2. Update UI badge
+    const brandBadge = document.getElementById('brandBadge');
+    brandBadge.innerText = `Brand: ${activeBrandId}`;
+
+    const form = document.getElementById('tradeForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusDiv = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Logging Trade...";
+      statusDiv.style.display = "none";
+
+      const tradeId = "TXN-" + Date.now().toString().slice(-6);
+
+      const payload = {
+        brand_id: activeBrandId,
+        trade_id: tradeId,
+        worker_name: document.getElementById('worker_name').value.trim(),
+        order_type: document.getElementById('order_type').value,
+        asset: "USDT",
+        quantity: parseFloat(document.getElementById('quantity').value) || 0,
+        price: parseFloat(document.getElementById('price').value) || 0,
+        gas_fee: parseFloat(document.getElementById('gas_fee').value) || 0,
+        platform_fee: 0,
+        payment_fee: 0,
+        fiat_currency: "NGN",
+        payment_method: document.getElementById('payment_method').value.trim(),
+        counterparty: document.getElementById('counterparty').value.trim()
+      };
+
+      try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          statusDiv.className = "success";
+          statusDiv.innerText = `✅ Trade ${tradeId} logged for [${activeBrandId}]!`;
+          statusDiv.style.display = "block";
+          
+          document.getElementById('quantity').value = "";
+          document.getElementById('price').value = "";
+          document.getElementById('gas_fee').value = "0";
+          document.getElementById('counterparty').value = "";
+        } else {
+          throw new Error("Server error " + response.status);
+        }
+      } catch (err) {
+        statusDiv.className = "error";
+        statusDiv.innerText = "❌ Failed to log trade. Check webhook or internet.";
+        statusDiv.style.display = "block";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Log Transaction";
+      }
+    });
+  </script>
+</body>
+</html>
